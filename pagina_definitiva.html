@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>CONTROL DE BATALLAS EPICAS 3.0</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Chart.js para los gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Firebase compat (NO módulos) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --arcilla: #c66a3d;
+      --arcilla-suave: #e6b199;
+      --verde-rg: #174d3c;
+      --fondo: #f7f3ee;
+      --texto: #222;
+      --blanco: #ffffff;
+      --gris-suave: #e0ded8;
+      --sombra-suave: 0 4px 10px rgba(0,0,0,0.06);
+      --radio: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: radial-gradient(circle at top, #fdf8f2 0, var(--fondo) 50%, #f2ece4 100%);
+      color: var(--texto);
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--verde-rg), #0f3327);
+      color: var(--blanco);
+      padding: 24px 16px 28px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2.4rem;
+      letter-spacing: 0.1em;
+    }
+
+    header p {
+      margin: 8px 0 0;
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+
+    header .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.4);
+      font-size: 0.8rem;
+      background: rgba(0,0,0,0.15);
+    }
+
+    header .badge span.ball {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ffe66b;
+      box-shadow: 0 0 6px rgba(255,230,107,0.9);
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 24px auto 40px;
+      padding: 0 16px 32px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.6fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--blanco);
+      border-radius: var(--radio);
+      padding: 16px 18px 18px;
+      box-shadow: var(--sombra-suave);
+      border: 1px solid var(--gris-suave);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 1.2rem;
+      color: var(--verde-rg);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h2::before {
+      content: "";
+      width: 6px;
+      height: 18px;
+      border-radius: 999px;
+      background: linear-gradient(to bottom, var(--arcilla), var(--arcilla-suave));
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .stat {
+      background: var(--fondo);
+      border-radius: 12px;
+      padding: 10px 12px;
+      border: 1px solid #e0d7cf;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #666;
+    }
+
+    .stat-value {
+      margin-top: 4px;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .stat-note {
+      font-size: 0.75rem;
+      color: #777;
+      margin-top: 2px;
+    }
+
+    .extra-geek {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: #555;
+      line-height: 1.4;
+    }
+
+    .extra-geek strong {
+      color: var(--verde-rg);
+    }
+
+    .ai-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px dashed var(--arcilla);
+      background: rgba(230, 177, 153, 0.25);
+      font-size: 0.9rem;
+      line-height: 1.4;
+      position: relative;
+    }
+
+    .ai-box-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: var(--verde-rg);
+    }
+
+    .ai-box::before {
+      content: "IA";
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      font-size: 0.7rem;
+      background: var(--verde-rg);
+      color: var(--blanco);
+      padding: 2px 6px;
+      border-radius: 999px;
+      letter-spacing: 0.08em;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 800px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    .chart-container {
+      position: relative;
+      height: 260px;
+    }
+
+    .section-title {
+      margin: 18px 0 8px;
+      font-size: 1.05rem;
+      color: var(--verde-rg);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--arcilla), transparent);
+      opacity: 0.4;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      background: var(--blanco);
+      border-radius: var(--radio);
+      overflow: hidden;
+      box-shadow: var(--sombra-suave);
+      margin-top: 8px;
+    }
+
+    thead {
+      background: linear-gradient(to right, var(--verde-rg), #236955);
+      color: var(--blanco);
+    }
+
+    th, td {
+      padding: 8px 10px;
+      text-align: left;
+    }
+
+    th {
+      font-weight: 500;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    tbody tr:nth-child(even) { background: #faf7f3; }
+
+    tbody tr:hover { background: #f1ebe4; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.73rem;
+      border: 1px solid #ddd;
+      background: #f9f5f0;
+    }
+
+    .tag.historical {
+      border-color: var(--arcilla-suave);
+      color: #8a4c2a;
+    }
+
+    .tag.manual {
+      border-color: var(--verde-rg);
+      color: var(--verde-rg);
+    }
+
+    .winner-antonio {
+      font-weight: 600;
+      color: #0f4d92;
+    }
+
+    .winner-paco {
+      font-weight: 600;
+      color: #8b2a0b;
+    }
+
+    .comment-cell {
+      max-width: 260px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px 14px;
+      margin-top: 10px;
+    }
+
+    label {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #444;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid #c9c3bc;
+      background: #fbf8f4;
+      font-size: 0.85rem;
+      font-family: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .field-full { grid-column: 1 / -1; }
+
+    .helper-text {
+      font-size: 0.75rem;
+      color: #777;
+      margin-top: 2px;
+    }
+
+    button {
+      align-self: end;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(to right, var(--arcilla), #d97945);
+      color: var(--blanco);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.18);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      justify-self: flex-start;
+    }
+
+    button:hover {
+      filter: brightness(1.03);
+      transform: translateY(-0.5px);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.18);
+    }
+
+    button span.racket { font-size: 1.1rem; }
+
+    .small-note {
+      font-size: 0.75rem;
+      color: #777;
+      margin-top: 4px;
+    }
+
+    .warning {
+      font-size: 0.8rem;
+      color: #a33;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CONTROL DE BATALLAS EPICAS 3.0</h1>
+    <p>Antonio vs Paco · Circuito privado “Roland Garros Edition”</p>
+    <div class="badge">
+      <span class="ball"></span>
+      <span>Marcador histórico y crónicas de la rivalidad</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <!-- Estadísticas generales + IA -->
+      <section class="card">
+        <h2>Marcador global de la rivalidad</h2>
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-label">Duelo totales</div>
+            <div class="stat-value" id="stat-total-matches">–</div>
+            <div class="stat-note" id="stat-period">Desde –</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-label">Victorias Antonio</div>
+            <div class="stat-value" id="stat-wins-antonio">–</div>
+            <div class="stat-note" id="stat-rate-antonio">–</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-label">Victorias Paco</div>
+            <div class="stat-value" id="stat-wins-paco">–</div>
+            <div class="stat-note" id="stat-rate-paco">–</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-label">Sets (Antonio)</div>
+            <div class="stat-value" id="stat-sets-antonio">–</div>
+            <div class="stat-note">Solo partidos con resultado</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-label">Juegos (Antonio)</div>
+            <div class="stat-value" id="stat-games-antonio">–</div>
+            <div class="stat-note">Solo partidos con resultado</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-label">Tie-breaks / STB</div>
+            <div class="stat-value" id="stat-tb-summary">–</div>
+            <div class="stat-note">A partir de resultados registrados</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-label">Racha actual</div>
+            <div class="stat-value" id="stat-current-streak">–</div>
+            <div class="stat-note">Jugador y nº de victorias seguidas</div>
+          </div>
+
+          <div class="stat">
+            <div class="stat-label">Mejor racha histórica</div>
+            <div class="stat-value" id="stat-best-streak">–</div>
+            <div class="stat-note">Serie más larga de victorias</div>
+          </div>
+        </div>
+
+        <div class="extra-geek" id="stat-extra-friki"></div>
+
+        <div class="ai-box" id="ai-box">
+          <div class="ai-box-title">Evaluación automática de la rivalidad</div>
+          <div id="ai-text">
+            Cargando datos desde la central de estadística…
+          </div>
+        </div>
+      </section>
+
+      <!-- Gráficos -->
+      <section class="card">
+        <h2>Vista rápida en gráficos</h2>
+        <div class="charts-grid">
+          <div class="chart-container">
+            <canvas id="chart-evolucion"></canvas>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-reparto"></canvas>
+          </div>
+        </div>
+        <div class="warning" id="db-warning" style="display:none;">
+          No se han podido cargar datos de la base de datos. Revisa la configuración de Firebase.
+        </div>
+      </section>
+    </div>
+
+    <!-- Histórico de partidos -->
+    <section>
+      <h3 class="section-title">Histórico de partidos</h3>
+      <div class="small-note">
+        Los resultados antiguos solo recogen fecha y ganador. Los partidos nuevos podrán incluir superficie, marcador detallado y comentarios.
+      </div>
+      <div style="margin-top:8px; overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Ganador</th>
+              <th>Superficie</th>
+              <th>Resultado (juegos Antonio–Paco)</th>
+              <th>Comentarios</th>
+              <th>Origen</th>
+            </tr>
+          </thead>
+          <tbody id="matches-body">
+            <!-- Filas generadas por JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Formulario para registrar nuevos partidos -->
+    <section style="margin-top:22px;">
+      <h3 class="section-title">Registrar nuevo partido</h3>
+      <div class="card">
+        <form id="new-match-form">
+          <div>
+            <label for="date">Fecha del duelo</label>
+            <input type="date" id="date" required />
+          </div>
+
+          <div>
+            <label for="surface">Superficie</label>
+            <select id="surface" required>
+              <option value="Tierra batida" selected>Tierra batida</option>
+              <option value="Pista dura">Pista dura</option>
+              <option value="Hierba">Hierba</option>
+              <option value="Moqueta / otra">Moqueta / otra</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="winner">¿Quién ha ganado?</label>
+            <select id="winner" required>
+              <option value="Antonio" selected>Antonio</option>
+              <option value="Paco">Paco</option>
+            </select>
+          </div>
+
+          <div class="field-full">
+            <label for="result">Resultado (juegos Antonio–Paco)</label>
+            <input type="text" id="result" placeholder="Ej.: 6-4 3-6 7-6(7-4) o 6-4 4-6 10-8" />
+            <div class="helper-text">
+              Introduce los juegos de <strong>Antonio</strong> primero en cada set, gane quien gane el partido.<br>
+              Tie-break clásico: añade entre paréntesis el tanteo del tie-break con el mismo orden de puntos:
+              <strong>7-6(7-4)</strong> si Antonio gana el tie-break 7-4.<br>
+              Supertiebreak final: anótalo como <strong>10-8</strong>, <strong>11-9</strong>, etc.
+            </div>
+          </div>
+
+          <div class="field-full">
+            <label for="comments">Comentarios del partido</label>
+            <textarea id="comments" placeholder="Crónica breve: derechas ganadoras, dobles faltas en puntos de break, épica del duelo…"></textarea>
+          </div>
+
+          <div>
+            <button type="submit">
+              <span class="racket">🎾</span>
+              <span>Guardar partido</span>
+            </button>
+          </div>
+        </form>
+        <div class="small-note">
+          Los partidos se guardan en una base de datos compartida. Cualquier persona que abra esta página verá el mismo histórico.
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    // ---------- Configuración Firebase (TU PROYECTO) ----------
+    const firebaseConfig = {
+      apiKey: "AIzaSyCLuk2lrt3snzXVG7WNx8vnNClqDl23Dug",
+      authDomain: "tenis3-dcfbf.firebaseapp.com",
+      projectId: "tenis3-dcfbf",
+      storageBucket: "tenis3-dcfbf.firebasestorage.app",
+      messagingSenderId: "543003820660",
+      appId: "1:543003820660:web:b52dd24cc7922949858721",
+      measurementId: "G-G98DBDX8Z4"
+    };
+
+    let db = null;
+    let matchesColRef = null;
+    let matches = [];
+    let chartEvolucion = null;
+    let chartReparto = null;
+
+    // ---------- Datos históricos iniciales (se suben UNA vez si Firestore está vacío) ----------
+    const seedMatches = [
+      { date: "2023-02-15", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-03-01", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-03-21", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-03-23", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-04-19", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-05-26", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-06-12", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-06-21", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-07-06", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-07-11", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-08-01", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-09-04", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-09-06", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-09-11", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-09-13", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-09-20", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-09-25", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-09-27", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-10-03", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-10-16", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-10-23", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-11-12", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-11-14", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2023-12-18", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-01-08", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-01-15", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-01-21", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-01-22", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-01-29", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-04-02", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-04-09", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-09-02", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-09-24", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-10-17", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-11-28", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-12-06", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-12-13", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2024-12-20", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-01-16", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-01-30", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-07-03", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-07-10", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-07-17", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-07-31", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-07-31", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-08-14", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-08-25", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-08-28", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-09-01", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-09-03", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-09-08", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-09-10", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-10-06", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-10-13", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-10-20", winner: "Antonio", surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-11-01", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+      { date: "2025-11-24", winner: "Paco",    surface: null, result: "", comments: "", source: "Histórico inicial" },
+    ];
+
+    // ---------- Utilidades ----------
+    function toDateObj(match) {
+      return new Date(match.date + "T00:00:00");
+    }
+
+    function getSortedMatches(list = matches) {
+      return [...list].sort((a, b) => toDateObj(a) - toDateObj(b));
+    }
+
+    function formatDisplayDate(isoDateStr) {
+      const [y, m, d] = isoDateStr.split("-");
+      return `${d}/${m}/${y}`;
+    }
+
+    function analyzeResult(resultText) {
+      const analysis = {
+        gamesAntonio: 0,
+        gamesPaco: 0,
+        setsAntonio: 0,
+        setsPaco: 0,
+        tieBreaksPlayed: 0,
+        tieBreaksWonAntonio: 0,
+        superTBPlayed: 0,
+        superTBWonAntonio: 0,
+      };
+
+      if (!resultText) return analysis;
+      const clean = resultText.replace(/,/g, " ").trim();
+      if (!clean) return analysis;
+
+      const sets = clean.split(/\s+/);
+
+      sets.forEach((setScore, idx) => {
+        const nums = setScore.match(/(\d+)[^\d]*?(\d+)/);
+        if (!nums) return;
+        const aGames = parseInt(nums[1], 10);
+        const pGames = parseInt(nums[2], 10);
+
+        analysis.gamesAntonio += aGames;
+        analysis.gamesPaco += pGames;
+
+        if (aGames > pGames) analysis.setsAntonio++;
+        else if (pGames > aGames) analysis.setsPaco++;
+
+        const maxGames = Math.max(aGames, pGames);
+        const minGames = Math.min(aGames, pGames);
+        const isTieBreak = (maxGames === 7 && minGames >= 5 && minGames <= 6);
+        const isSuperTB = (idx === sets.length - 1 && maxGames >= 10 && (maxGames - minGames) >= 2);
+
+        if (isTieBreak) {
+          analysis.tieBreaksPlayed++;
+          if (aGames > pGames) analysis.tieBreaksWonAntonio++;
+        }
+        if (isSuperTB) {
+          analysis.superTBPlayed++;
+          if (aGames > pGames) analysis.superTBWonAntonio++;
+        }
+      });
+
+      return analysis;
+    }
+
+    function computeStreaks(sortedMatches) {
+      if (!sortedMatches.length) {
+        return {
+          currentStreakPlayer: null,
+          currentStreakLength: 0,
+          bestStreakPlayer: null,
+          bestStreakLength: 0,
+        };
+      }
+
+      let currentPlayer = null;
+      let currentLength = 0;
+      let bestPlayer = null;
+      let bestLength = 0;
+
+      sortedMatches.forEach(m => {
+        if (!currentPlayer || currentPlayer !== m.winner) {
+          currentPlayer = m.winner;
+          currentLength = 1;
+        } else {
+          currentLength++;
+        }
+
+        if (currentLength > bestLength) {
+          bestLength = currentLength;
+          bestPlayer = currentPlayer;
+        }
+      });
+
+      return {
+        currentStreakPlayer: currentPlayer,
+        currentStreakLength: currentLength,
+        bestStreakPlayer: bestPlayer,
+        bestStreakLength: bestLength,
+      };
+    }
+
+    function computeStats() {
+      const sorted = getSortedMatches();
+      const total = sorted.length;
+      const winsAntonio = sorted.filter(m => m.winner === "Antonio").length;
+      const winsPaco = sorted.filter(m => m.winner === "Paco").length;
+      const detailed = sorted.filter(m => m.result && m.result.trim() !== "");
+
+      let gamesAntonio = 0;
+      let gamesPaco = 0;
+      let setsAntonio = 0;
+      let setsPaco = 0;
+      let tbPlayed = 0;
+      let tbWonAntonio = 0;
+      let stbPlayed = 0;
+      let stbWonAntonio = 0;
+
+      const yearly = {};
+      const bySurface = {};
+
+      sorted.forEach(m => {
+        const year = toDateObj(m).getFullYear();
+        if (!yearly[year]) yearly[year] = { total: 0, winsAntonio: 0, winsPaco: 0 };
+        yearly[year].total++;
+        if (m.winner === "Antonio") yearly[year].winsAntonio++; else if (m.winner === "Paco") yearly[year].winsPaco++;
+
+        if (m.surface) {
+          if (!bySurface[m.surface]) bySurface[m.surface] = { total: 0, winsAntonio: 0, winsPaco: 0 };
+          bySurface[m.surface].total++;
+          if (m.winner === "Antonio") bySurface[m.surface].winsAntonio++; else if (m.winner === "Paco") bySurface[m.surface].winsPaco++;
+        }
+      });
+
+      detailed.forEach(m => {
+        const a = analyzeResult(m.result);
+        gamesAntonio += a.gamesAntonio;
+        gamesPaco += a.gamesPaco;
+        setsAntonio += a.setsAntonio;
+        setsPaco += a.setsPaco;
+        tbPlayed += a.tieBreaksPlayed;
+        tbWonAntonio += a.tieBreaksWonAntonio;
+        stbPlayed += a.superTBPlayed;
+        stbWonAntonio += a.superTBWonAntonio;
+      });
+
+      const streaks = computeStreaks(sorted);
+
+      return {
+        totalMatches: total,
+        winsAntonio,
+        winsPaco,
+        winRateAntonio: total ? (winsAntonio / total) * 100 : 0,
+        winRatePaco: total ? (winsPaco / total) * 100 : 0,
+        gamesAntonio,
+        gamesPaco,
+        setsAntonio,
+        setsPaco,
+        tieBreaksPlayed: tbPlayed,
+        tieBreaksWonAntonio: tbWonAntonio,
+        superTBPlayed: stbPlayed,
+        superTBWonAntonio: stbWonAntonio,
+        yearly,
+        bySurface,
+        startDate: total ? sorted[0].date : null,
+        endDate: total ? sorted[sorted.length - 1].date : null,
+        sortedMatches: sorted,
+        currentStreakPlayer: streaks.currentStreakPlayer,
+        currentStreakLength: streaks.currentStreakLength,
+        bestStreakPlayer: streaks.bestStreakPlayer,
+        bestStreakLength: streaks.bestStreakLength,
+      };
+    }
+
+    function buildGeekStats(stats) {
+      const lines = [];
+
+      if (stats.gamesAntonio || stats.gamesPaco) {
+        const diffGames = stats.gamesAntonio - stats.gamesPaco;
+        const signo = diffGames > 0 ? "+" : "";
+        lines.push(
+          `<strong>Diferencia total de juegos</strong>: Antonio ${stats.gamesAntonio} – Paco ${stats.gamesPaco} (${signo}${diffGames}).`
+        );
+      }
+
+      const years = Object.keys(stats.yearly).sort();
+      if (years.length) {
+        const perYear = years.map(y => {
+          const yData = stats.yearly[y];
+          return `${y}: A ${yData.winsAntonio} – P ${yData.winsPaco} (total ${yData.total})`;
+        }).join(" · ");
+        lines.push(`<strong>Balance por año</strong>: ${perYear}.`);
+      }
+
+      const surfaces = Object.keys(stats.bySurface);
+      if (surfaces.length) {
+        const perSurf = surfaces.map(s => {
+          const sData = stats.bySurface[s];
+          return `${s}: A ${sData.winsAntonio} – P ${sData.winsPaco} (${sData.total} partidos)`;
+        }).join(" · ");
+        lines.push(`<strong>Por superficie</strong>: ${perSurf}.`);
+      } else {
+        lines.push(`<strong>Por superficie</strong>: pendiente de datos, se rellenará con los nuevos partidos.`);
+      }
+
+      return lines.join("<br>");
+    }
+
+    function renderMatchesTable(sortedMatches) {
+      const tbody = document.getElementById("matches-body");
+      tbody.innerHTML = "";
+
+      sortedMatches.forEach(m => {
+        const tr = document.createElement("tr");
+
+        const tdDate = document.createElement("td");
+        tdDate.textContent = formatDisplayDate(m.date);
+        tr.appendChild(tdDate);
+
+        const tdWinner = document.createElement("td");
+        tdWinner.textContent = m.winner;
+        tdWinner.className = m.winner === "Antonio" ? "winner-antonio" : "winner-paco";
+        tr.appendChild(tdWinner);
+
+        const tdSurface = document.createElement("td");
+        tdSurface.textContent = m.surface || "–";
+        tr.appendChild(tdSurface);
+
+        const tdResult = document.createElement("td");
+        tdResult.textContent = m.result || "–";
+        tr.appendChild(tdResult);
+
+        const tdComments = document.createElement("td");
+        tdComments.textContent = m.comments || "";
+        tdComments.className = "comment-cell";
+        tr.appendChild(tdComments);
+
+        const tdSource = document.createElement("td");
+        const span = document.createElement("span");
+        span.className = "tag " + (m.source === "Histórico inicial" ? "historical" : "manual");
+        span.textContent = m.source === "Histórico inicial" ? "Histórico" : "Registrado";
+        tdSource.appendChild(span);
+        tr.appendChild(tdSource);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function generateAIInsight(stats) {
+      if (stats.totalMatches === 0) {
+        return "Aún no hay datos suficientes para evaluar la rivalidad. Cuando se acumulen más duelos, este cuadro ofrecerá una lectura estilo sala de prensa de Grand Slam.";
+      }
+
+      const diff = stats.winsAntonio - stats.winsPaco;
+      const absDiff = Math.abs(diff);
+      const lastMatches = stats.sortedMatches.slice(-5);
+      const lastAntonio = lastMatches.filter(m => m.winner === "Antonio").length;
+      const lastPaco = lastMatches.filter(m => m.winner === "Paco").length;
+
+      let fraseBase = "";
+      if (absDiff <= 2) {
+        fraseBase = "El marcador dibuja una rivalidad de auténtico ida y vuelta: nadie se escapa y cada duelo tiene aroma de partido grande.";
+      } else if (diff > 2) {
+        fraseBase = "Antonio marca el paso en el cara a cara global, con una ventaja que refleja más consistencia que dominio aplastante.";
+      } else {
+        fraseBase = "Paco impone su ley en el histórico, con una renta que evidencia más oficio en los momentos clave de muchos partidos.";
+      }
+
+      let formaReciente = "";
+      if (lastAntonio === lastPaco) {
+        formaReciente = "La dinámica reciente está empatada: los últimos partidos parecen más una batalla de ajustes tácticos que una cuestión de confianza.";
+      } else if (lastAntonio > lastPaco) {
+        formaReciente = "En los últimos encuentros, Antonio llega con más gasolina competitiva, encadenando resultados que consolidan su confianza desde el fondo.";
+      } else {
+        formaReciente = "La racha más fresca favorece a Paco, que viene aprovechando mejor las oportunidades y manejando los momentos de presión con calma de veterano.";
+      }
+
+      let rachas = "";
+      if (stats.bestStreakLength > 2 && stats.bestStreakPlayer) {
+        rachas = ` La mejor racha histórica es de ${stats.bestStreakLength} victorias seguidas para ${stats.bestStreakPlayer}, una secuencia que en cualquier circuito se considera “semana inspirada de Masters 1000”.`;
+      } else {
+        rachas = " En términos de rachas largas, el historial no muestra tiranías claras: la rivalidad se inclina pero no se rompe.";
+      }
+
+      let tieBreakComment = "";
+      if (stats.tieBreaksPlayed === 0 && stats.superTBPlayed === 0) {
+        tieBreakComment = " A falta de datos de tie-break, aún no hay veredicto sobre quién gestiona mejor el punto apretado con el público levantado de la silla.";
+      } else {
+        const totalClutch = stats.tieBreaksPlayed + stats.superTBPlayed;
+        const clutchWonAntonio = stats.tieBreaksWonAntonio + stats.superTBWonAntonio;
+        const pct = (clutchWonAntonio / totalClutch) * 100;
+        if (pct >= 60) {
+          tieBreakComment = " Los juegos decisivos (tie-breaks y supertiebreaks) inclinan la balanza hacia Antonio, que parece crecer cuando el marcador entra en territorio de nervios.";
+        } else if (pct <= 40) {
+          tieBreakComment = " En los juegos al límite, las estadísticas sonríen claramente a Paco, que convierte los desempates en su particular pista talismán.";
+        } else {
+          tieBreakComment = " En tie-breaks y supertiebreaks no hay un dueño claro: las cifras hablan de equilibrio y de una rivalidad que se decide más por desgaste que por un solo golpe ganador.";
+        }
+      }
+
+      return fraseBase + " " + formaReciente + rachas + tieBreakComment;
+    }
+
+    function updateCharts(stats) {
+      const ctxE = document.getElementById("chart-evolucion").getContext("2d");
+      const ctxR = document.getElementById("chart-reparto").getContext("2d");
+
+      const labels = [];
+      const dataAntonio = [];
+      const dataPaco = [];
+
+      let cumA = 0;
+      let cumP = 0;
+      stats.sortedMatches.forEach(m => {
+        labels.push(formatDisplayDate(m.date));
+        if (m.winner === "Antonio") cumA++;
+        else if (m.winner === "Paco") cumP++;
+        dataAntonio.push(cumA);
+        dataPaco.push(cumP);
+      });
+
+      if (chartEvolucion) chartEvolucion.destroy();
+      chartEvolucion = new Chart(ctxE, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            { label: "Antonio", data: dataAntonio, borderWidth: 2, fill: false },
+            { label: "Paco", data: dataPaco, borderWidth: 2, borderDash: [5, 4], fill: false }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true },
+            tooltip: { mode: "index", intersect: false }
+          },
+          scales: {
+            x: { ticks: { autoSkip: true, maxTicksLimit: 8 } },
+            y: { beginAtZero: true, precision: 0 }
+          }
+        }
+      });
+
+      if (chartReparto) chartReparto.destroy();
+      chartReparto = new Chart(ctxR, {
+        type: "doughnut",
+        data: {
+          labels: ["Antonio", "Paco"],
+          datasets: [{
+            data: [stats.winsAntonio, stats.winsPaco],
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom" } },
+          cutout: "55%"
+        }
+      });
+    }
+
+    function updateStatsUI() {
+      const stats = computeStats();
+
+      document.getElementById("stat-total-matches").textContent = stats.totalMatches || "0";
+
+      const period = stats.startDate && stats.endDate
+        ? `Desde ${formatDisplayDate(stats.startDate)} hasta ${formatDisplayDate(stats.endDate)}`
+        : "Sin datos";
+      document.getElementById("stat-period").textContent = period;
+
+      document.getElementById("stat-wins-antonio").textContent = stats.winsAntonio;
+      document.getElementById("stat-rate-antonio").textContent =
+        stats.totalMatches ? `${stats.winRateAntonio.toFixed(1)} % de victorias` : "–";
+
+      document.getElementById("stat-wins-paco").textContent = stats.winsPaco;
+      document.getElementById("stat-rate-paco").textContent =
+        stats.totalMatches ? `${stats.winRatePaco.toFixed(1)} % de victorias` : "–";
+
+      document.getElementById("stat-sets-antonio").textContent =
+        (stats.setsAntonio || stats.setsPaco)
+          ? `${stats.setsAntonio} – ${stats.setsPaco}`
+          : "–";
+
+      document.getElementById("stat-games-antonio").textContent =
+        (stats.gamesAntonio || stats.gamesPaco)
+          ? `${stats.gamesAntonio} – ${stats.gamesPaco}`
+          : "–";
+
+      if (stats.tieBreaksPlayed === 0 && stats.superTBPlayed === 0) {
+        document.getElementById("stat-tb-summary").textContent = "Sin datos";
+      } else {
+        const tbPct = stats.tieBreaksPlayed
+          ? (stats.tieBreaksWonAntonio / stats.tieBreaksPlayed) * 100
+          : 0;
+        const stbPct = stats.superTBPlayed
+          ? (stats.superTBWonAntonio / stats.superTBPlayed) * 100
+          : 0;
+
+        const parts = [];
+        if (stats.tieBreaksPlayed) {
+          parts.push(`TB: ${stats.tieBreaksWonAntonio}/${stats.tieBreaksPlayed} (${tbPct.toFixed(0)} % A)`);
+        }
+        if (stats.superTBPlayed) {
+          parts.push(`STB: ${stats.superTBWonAntonio}/${stats.superTBPlayed} (${stbPct.toFixed(0)} % A)`);
+        }
+        document.getElementById("stat-tb-summary").textContent = parts.join(" · ");
+      }
+
+      const currentLabel = (!stats.currentStreakPlayer || stats.currentStreakLength <= 1)
+        ? "Sin racha significativa"
+        : `${stats.currentStreakPlayer} · ${stats.currentStreakLength} victorias`;
+      document.getElementById("stat-current-streak").textContent = currentLabel;
+
+      const bestLabel = (!stats.bestStreakPlayer || stats.bestStreakLength <= 1)
+        ? "Sin racha destacable"
+        : `${stats.bestStreakPlayer} · ${stats.bestStreakLength} victorias`;
+      document.getElementById("stat-best-streak").textContent = bestLabel;
+
+      document.getElementById("stat-extra-friki").innerHTML = buildGeekStats(stats);
+      document.getElementById("ai-text").textContent = generateAIInsight(stats);
+      renderMatchesTable(stats.sortedMatches);
+      updateCharts(stats);
+    }
+
+    // ---------- Firebase: inicializar y escuchar cambios ----------
+    async function initFirebaseAndListen() {
+      try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        matchesColRef = db.collection("matches");
+
+        // Semilla: si la colección está vacía, cargamos históricos
+        const snap = await matchesColRef.limit(1).get();
+        if (snap.empty) {
+          const batch = db.batch();
+          seedMatches.forEach((m, idx) => {
+            const id = `${m.date}-${idx}`;
+            batch.set(matchesColRef.doc(id), m);
+          });
+          await batch.commit();
+        }
+
+        // Escucha en tiempo casi real
+        matchesColRef.orderBy("date").onSnapshot((snapshot) => {
+          matches = snapshot.docs.map(doc => doc.data());
+          updateStatsUI();
+          document.getElementById("db-warning").style.display = "none";
+        }, (error) => {
+          console.error("Error al escuchar datos:", error);
+          document.getElementById("db-warning").style.display = "block";
+          document.getElementById("ai-text").textContent = "No se ha podido cargar la base de datos. Revisa la configuración de Firebase.";
+        });
+      } catch (e) {
+        console.error("Error inicializando Firebase:", e);
+        document.getElementById("db-warning").style.display = "block";
+        document.getElementById("ai-text").textContent = "No se ha podido conectar con Firebase. Revisa la configuración.";
+      }
+    }
+
+    // ---------- Formulario: guardar nuevo partido ----------
+    document.getElementById("new-match-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!matchesColRef) {
+        alert("La base de datos no está inicializada. Revisa Firebase.");
+        return;
+      }
+
+      const date = document.getElementById("date").value;
+      const surface = document.getElementById("surface").value;
+      const winner = document.getElementById("winner").value;
+      const result = document.getElementById("result").value.trim();
+      const comments = document.getElementById("comments").value.trim();
+
+      if (!date || !winner) return;
+
+      const newMatch = {
+        date,
+        winner,
+        surface: surface || null,
+        result,
+        comments,
+        source: "Añadido manualmente",
+      };
+
+      try {
+        const id = `${date}-${Date.now()}`;
+        await matchesColRef.doc(id).set(newMatch);
+        document.getElementById("result").value = "";
+        document.getElementById("comments").value = "";
+      } catch (err) {
+        console.error("Error guardando partido:", err);
+        alert("Ha habido un problema al guardar el partido en la base de datos.");
+      }
+    });
+
+    // ---------- Arranque ----------
+    initFirebaseAndListen();
+  </script>
+</body>
+</html>
