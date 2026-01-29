@@ -118,6 +118,7 @@
       border-radius: 999px;
       background: linear-gradient(to bottom, var(--arcilla), var(--arcilla-suave));
     }
+
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -242,6 +243,7 @@
     th, td {
       padding: 8px 10px;
       text-align: left;
+      vertical-align: top;
     }
 
     th {
@@ -252,7 +254,6 @@
     }
 
     tbody tr:nth-child(even) { background: #faf7f3; }
-
     tbody tr:hover { background: #f1ebe4; }
 
     .tag {
@@ -285,11 +286,112 @@
       color: #8b2a0b;
     }
 
+    /* ---- Comentarios: vista previa + "Ver más" ---- */
     .comment-cell {
       max-width: 260px;
+    }
+
+    .comment-preview {
+      display: block;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .comment-more {
+      margin-top: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+      color: var(--verde-rg);
+      font-weight: 600;
+      font-size: 0.78rem;
+      text-decoration: underline;
+    }
+
+    .comment-more:hover {
+      filter: brightness(0.95);
+    }
+
+    /* ---- Modal "Ver más" ---- */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 1000;
+    }
+
+    .modal {
+      width: min(720px, 100%);
+      background: var(--blanco);
+      border-radius: 16px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.25);
+      border: 1px solid rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 12px 14px;
+      background: linear-gradient(135deg, var(--verde-rg), #0f3327);
+      color: var(--blanco);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal-title {
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      font-size: 0.95rem;
+      line-height: 1.2;
+    }
+
+    .modal-close {
+      border: 1px solid rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.12);
+      color: var(--blanco);
+      border-radius: 999px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .modal-close:hover {
+      filter: brightness(1.05);
+    }
+
+    .modal-body {
+      padding: 14px;
+    }
+
+    .modal-meta {
+      font-size: 0.82rem;
+      color: #555;
+      margin-bottom: 10px;
+      line-height: 1.35;
+    }
+
+    .modal-text {
+      background: #fbf8f4;
+      border: 1px solid #e0d7cf;
+      border-radius: 12px;
+      padding: 12px;
+      white-space: pre-wrap;
+      line-height: 1.45;
+      font-size: 0.92rem;
+      color: #222;
+      max-height: 45vh;
+      overflow: auto;
     }
 
     form {
@@ -549,6 +651,21 @@
       </div>
     </section>
   </main>
+
+  <!-- Modal para ver comentarios completos -->
+  <div class="modal-overlay" id="comment-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="comment-modal-title">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="comment-modal-title">Comentario completo</div>
+        <button class="modal-close" id="comment-modal-close" type="button" aria-label="Cerrar">Cerrar</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-meta" id="comment-modal-meta"></div>
+        <div class="modal-text" id="comment-modal-text"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ---------- Configuración Firebase (TU PROYECTO) ----------
     const firebaseConfig = {
@@ -642,6 +759,15 @@
       return `${d}/${m}/${y}`;
     }
 
+    // Para modal: título/meta
+    function buildMatchLabel(match) {
+      const fecha = match?.date ? formatDisplayDate(match.date) : "–";
+      const ganador = match?.winner ? match.winner : "–";
+      const sup = match?.surface ? match.surface : "–";
+      const res = match?.result ? match.result : "–";
+      return `Fecha: ${fecha} · Ganador: ${ganador} · Superficie: ${sup} · Resultado: ${res}`;
+    }
+
     function analyzeResult(resultText) {
       const analysis = {
         gamesAntonio: 0,
@@ -674,7 +800,11 @@
 
         const maxGames = Math.max(aGames, pGames);
         const minGames = Math.min(aGames, pGames);
-        const isTieBreak = (maxGames === 7 && minGames >= 5 && minGames <= 6);
+
+        // Tie-break clásico: solo 7-6 (o 6-7) cuenta como set con TB
+        const isTieBreak = (maxGames === 7 && minGames === 6);
+
+        // Supertiebreak final (10 o más, diferencia 2, último set)
         const isSuperTB = (idx === sets.length - 1 && maxGames >= 10 && (maxGames - minGames) >= 2);
 
         if (isTieBreak) {
@@ -833,11 +963,39 @@
       return lines.join("<br>");
     }
 
+    // ---------- Modal: abrir/cerrar ----------
+    const modalOverlay = document.getElementById("comment-modal-overlay");
+    const modalCloseBtn = document.getElementById("comment-modal-close");
+    const modalMeta = document.getElementById("comment-modal-meta");
+    const modalText = document.getElementById("comment-modal-text");
+
+    function openCommentModal(match) {
+      modalMeta.textContent = buildMatchLabel(match);
+      modalText.textContent = (match?.comments || "").trim() || "Sin comentarios.";
+      modalOverlay.style.display = "flex";
+      // foco accesible
+      modalCloseBtn.focus();
+    }
+
+    function closeCommentModal() {
+      modalOverlay.style.display = "none";
+      modalMeta.textContent = "";
+      modalText.textContent = "";
+    }
+
+    modalCloseBtn.addEventListener("click", closeCommentModal);
+    modalOverlay.addEventListener("click", (e) => {
+      if (e.target === modalOverlay) closeCommentModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modalOverlay.style.display === "flex") closeCommentModal();
+    });
+
     function renderMatchesTable(sortedMatches) {
       const tbody = document.getElementById("matches-body");
       tbody.innerHTML = "";
 
-      sortedMatches.forEach(m => {
+      sortedMatches.forEach((m, index) => {
         const tr = document.createElement("tr");
 
         const tdDate = document.createElement("td");
@@ -857,9 +1015,32 @@
         tdResult.textContent = m.result || "–";
         tr.appendChild(tdResult);
 
+        // Comentarios: preview + "Ver más" (abre modal)
         const tdComments = document.createElement("td");
-        tdComments.textContent = m.comments || "";
         tdComments.className = "comment-cell";
+
+        const commentText = (m.comments || "").trim();
+        if (!commentText) {
+          tdComments.textContent = "–";
+        } else {
+          const preview = document.createElement("span");
+          preview.className = "comment-preview";
+          preview.textContent = commentText;
+          preview.title = commentText; // extra: tooltip rápido
+          tdComments.appendChild(preview);
+
+          // Solo mostrar "Ver más" si el comentario es lo bastante largo
+          const THRESHOLD = 70;
+          if (commentText.length > THRESHOLD) {
+            const moreBtn = document.createElement("button");
+            moreBtn.type = "button";
+            moreBtn.className = "comment-more";
+            moreBtn.textContent = "Ver más";
+            // Guardamos el índice para recuperar el match al click (event delegation simple)
+            moreBtn.dataset.matchIndex = String(index);
+            tdComments.appendChild(moreBtn);
+          }
+        }
         tr.appendChild(tdComments);
 
         const tdSource = document.createElement("td");
@@ -872,6 +1053,20 @@
         tbody.appendChild(tr);
       });
     }
+
+    // Click en "Ver más" (delegación sobre tbody)
+    document.getElementById("matches-body").addEventListener("click", (e) => {
+      const btn = e.target.closest(".comment-more");
+      if (!btn) return;
+      const idx = parseInt(btn.dataset.matchIndex, 10);
+      if (Number.isNaN(idx)) return;
+
+      const stats = computeStats(); // garantiza coherencia con el orden actual
+      const match = stats.sortedMatches[idx];
+      if (!match) return;
+
+      openCommentModal(match);
+    });
 
     function generateAIInsight(stats) {
       if (stats.totalMatches === 0) {
